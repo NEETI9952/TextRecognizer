@@ -5,6 +5,8 @@ import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
+
 import android.Manifest;
 import android.app.Activity;
 import android.content.DialogInterface;
@@ -60,8 +62,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        StrictMode.VmPolicy.Builder builder = new StrictMode.VmPolicy.Builder();
-        StrictMode.setVmPolicy(builder.build());
+//        StrictMode.VmPolicy.Builder builder = new StrictMode.VmPolicy.Builder();
+//        StrictMode.setVmPolicy(builder.build());
 
         myTextViewInfo = findViewById(R.id.textViewBillInfo);
         myEditTextGst = findViewById(R.id.textViewGST);
@@ -161,7 +163,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         File file = new File(Environment.getExternalStorageDirectory(),  timeStamp + ".png");
-        imageUri = Uri.fromFile(file);
+//        imageUri = Uri.fromFile(file);
+        imageUri  = FileProvider.getUriForFile(MainActivity.this, BuildConfig.APPLICATION_ID + ".provider",file);
 
 
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
