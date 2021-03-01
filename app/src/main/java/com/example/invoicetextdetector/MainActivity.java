@@ -26,6 +26,7 @@ import android.util.Log;
 import android.util.SparseIntArray;
 import android.view.Surface;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -42,24 +43,29 @@ import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
     private Bitmap myBitmap;
     private ImageView myImageView;
-    private TextView myTextView;
+    private TextView myTextViewInfo;
+    private EditText myEditTextGst;
     public static final int CAMERA_PERM_CODE = 101;
     public static final int CAMERA_REQUEST_CODE = 102;
     public static final int GALLERY_REQUEST_CODE = 105;
     int rotation=0;
     Uri imageUri;
+    String GstPattern= "((?=.*[0-9A-Z]).{15})";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        myTextView = findViewById(R.id.textView);
+        myTextViewInfo = findViewById(R.id.textViewBillInfo);
+        myEditTextGst = findViewById(R.id.textViewGST);
         myImageView = findViewById(R.id.imageView);
         findViewById(R.id.checkText).setOnClickListener(this);
         findViewById(R.id.select_image).setOnClickListener(this);
@@ -79,7 +85,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
                 break;
             case R.id.select_image:
-                myTextView.setText("");
+                myTextViewInfo.setText("");
                 selectPhoto();
                 break;
         }
@@ -266,9 +272,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void processExtractedText(Text firebaseVisionText) {
-        myTextView.setText(null);
+        myTextViewInfo.setText(null);
         if (firebaseVisionText.getText().length() == 0) {
-            myTextView.setText("No text found. Please try again");
+            myTextViewInfo.setText("No text found. Please try again");
             return;
         }
 
@@ -278,31 +284,34 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 //        }
         for (Text.TextBlock block : firebaseVisionText.getTextBlocks()) {
             String blockText = block.getText();
-            Point[] blockCornerPoints = block.getCornerPoints();
-            Rect blockFrame = block.getBoundingBox();
 
             for (Text.Line line : block.getLines()) {
                 String lineText = line.getText();
-                Point[] lineCornerPoints = line.getCornerPoints();
-                Rect lineFrame = line.getBoundingBox();
+
+                if(lineText.contains("GSTIN")){
+                    Pattern r = Pattern.compile(GstPattern);
+                    Matcher m = r.matcher(lineText);
+
+                    if (m.find( )) {
+                        myEditTextGst.setText(m.group(0));
+                    }
+                }
 
                 for (Text.Element element : line.getElements()) {
                     String elementText = element.getText();
-                    Point[] elementCornerPoints = element.getCornerPoints();
-                    Rect elementFrame = element.getBoundingBox();
 
-                    myTextView.append(elementText);
+
+                    myTextViewInfo.append(elementText+"\n");
                     Log.i("ExtractedText-line:", lineText);
                     Log.i("ExtractedText-block:", blockText);
                     Log.i("ExtractedText-element:", elementText);
-
                 }
-
             }
-
         }
+    }
 
-
+    public boolean validateGST(String gst){
+        return GstPattern.matches(gst);
     }
 
 }

@@ -20,14 +20,20 @@
             <ImageView
                 android:id="@+id/imageView"
                 android:layout_width="300dp"
-                android:layout_height="600dp"
+                android:layout_height="500dp"
                 android:adjustViewBounds="true"
                 android:scaleType="fitXY"
                 android:layout_gravity="center"
                 android:src="@drawable/ic_baseline_image_24" />
 
-            <TextView
-                android:id="@+id/textView"
+            <EditText
+                android:id="@+id/textViewGST"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
+
+            <EditText
+                android:id="@+id/textViewBillInfo"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
@@ -41,19 +47,19 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
-        android:orientation="horizontal"
+        android:orientation="vertical"
         android:gravity="center"
         >
 
         <Button
             android:id="@+id/select_image"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Select Image"
-            android:layout_marginRight="20dp"/>
+            android:text="Select Image" />
+
         <Button
             android:id="@+id/checkText"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Check the text" />
 
