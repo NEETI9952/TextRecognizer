@@ -4,6 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:layout_margin="16dp"
     tools:context=".MainActivity">
 
     <ScrollView
@@ -18,9 +19,11 @@
 
             <ImageView
                 android:id="@+id/imageView"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_width="300dp"
+                android:layout_height="600dp"
                 android:adjustViewBounds="true"
+                android:scaleType="fitXY"
+                android:layout_gravity="center"
                 android:src="@drawable/ic_baseline_image_24" />
 
             <TextView

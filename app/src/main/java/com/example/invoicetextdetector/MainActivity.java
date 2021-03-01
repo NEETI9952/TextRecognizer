@@ -1,10 +1,11 @@
 package com.example.invoicetextdetector;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.annotation.RequiresApi;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+import android.Manifest;
 import android.app.Activity;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -18,8 +19,10 @@ import android.hardware.camera2.CameraManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.os.StrictMode;
 import android.provider.MediaStore;
-import android.provider.Settings;
+import android.util.Log;
 import android.util.SparseIntArray;
 import android.view.Surface;
 import android.view.View;
@@ -29,22 +32,27 @@ import android.widget.Toast;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.mlkit.vision.common.InputImage;
 import com.google.mlkit.vision.text.Text;
 import com.google.mlkit.vision.text.TextRecognition;
 import com.google.mlkit.vision.text.TextRecognizer;
 
 import java.io.File;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
     private Bitmap myBitmap;
     private ImageView myImageView;
     private TextView myTextView;
-    public static final int WRITE_STORAGE = 100;
-    public static final int SELECT_PHOTO = 102;
-    public File photo;
+    public static final int CAMERA_PERM_CODE = 101;
+    public static final int CAMERA_REQUEST_CODE = 102;
+    public static final int GALLERY_REQUEST_CODE = 105;
     int rotation=0;
+    Uri imageUri;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,6 +63,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         myImageView = findViewById(R.id.imageView);
         findViewById(R.id.checkText).setOnClickListener(this);
         findViewById(R.id.select_image).setOnClickListener(this);
+
+        StrictMode.VmPolicy.Builder builder = new StrictMode.VmPolicy.Builder();
+        StrictMode.setVmPolicy(builder.build());
     }
 
     @Override
@@ -69,32 +80,132 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
             case R.id.select_image:
                 myTextView.setText("");
-                checkPermission(WRITE_STORAGE);
+                selectPhoto();
                 break;
         }
     }
 
+    public void selectPhoto() {
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(MainActivity.this);
+        builder.setIcon(R.drawable.addimage);
+        builder.setMessage("Choose image source")
+                .setPositiveButton("Camera", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        cameraPermission();
+                    }
+                }).setNegativeButton("Gallery", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                galleryPermissions();
+            }
+        });
+        builder.show();
+
+    }
+
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        switch (requestCode) {
+            case CAMERA_PERM_CODE:
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    dispatchTakePictureIntent();
+                } else {
+
+                }
+                break;
+            case GALLERY_REQUEST_CODE:
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    dispatchToGalleryIntent();
+                } else {
+                }
+                break;
+
+        }
+
+    }
+
+    private void galleryPermissions() {
+        if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, GALLERY_REQUEST_CODE);
+            }
+
+        } else {
+            dispatchToGalleryIntent();
+        }
+    }
+
+    private void dispatchToGalleryIntent() {
+        Intent gallery = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+        startActivityForResult(gallery, GALLERY_REQUEST_CODE);
+    }
+
+    public void cameraPermission() {
+
+        if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                requestPermissions(new String[]{Manifest.permission.CAMERA}, CAMERA_PERM_CODE);
+            }
+
+        } else {
+            dispatchTakePictureIntent();
+        }
+    }
+
+    private void dispatchTakePictureIntent () {
+
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        File file = new File(Environment.getExternalStorageDirectory(),  timeStamp + ".png");
+        imageUri = Uri.fromFile(file);
+
+
+        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
+        if (takePictureIntent.resolveActivity(MainActivity.this.getPackageManager()) != null) {
+            startActivityForResult(takePictureIntent, CAMERA_REQUEST_CODE);
+
+        }
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (resultCode == RESULT_OK) {
-            switch (requestCode) {
-                case WRITE_STORAGE:
-                    checkPermission(requestCode);
-                    break;
-                case SELECT_PHOTO:
-                    Uri dataUri = data.getData();
-                    String path = CommonUtils.getPath(this, dataUri);
-                    if (path == null) {
-                        myBitmap = CommonUtils.resizePhoto(photo, this, dataUri, myImageView);
-                    } else {
-                        myBitmap = CommonUtils.resizePhoto(photo, path, myImageView);
-                    }
-                    if (myBitmap != null) {
-                        myTextView.setText(null);
-                        myImageView.setImageBitmap(myBitmap);
-                    }
-                    break;
+//        Toast.makeText(MainActivity.this, "Please Wait!", Toast.LENGTH_SHORT).show();
+        if(requestCode == CAMERA_REQUEST_CODE){
+            try {
+                myBitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), imageUri);
+                myImageView.setImageBitmap(myBitmap);
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+//            if (resultCode == Activity.RESULT_OK) {
+//                Bundle extras = data.getExtras();
+//                myBitmap=(Bitmap) extras.get("data");
+//                myImageView.setImageBitmap(myBitmap);
+//                myImageView.setTag("photo added");
+//                showProgressBar();
+//                handleUpload(bitmap);
+//            }
+        }
+        if (requestCode == GALLERY_REQUEST_CODE&&data!=null&&data.getData()!=null) {
+            if (resultCode == Activity.RESULT_OK) {
+
+                Uri uri=data.getData();
+                try {
+                    myBitmap=MediaStore.Images.Media.getBitmap(MainActivity.this.getContentResolver(),uri);
+                    myImageView.setImageBitmap(myBitmap);
+//                    showProgressBar();
+
+                } catch (IOException e) {
+                    Toast.makeText(this, "Photo not uploaded", Toast.LENGTH_SHORT).show();
+//                    hideProgressBar();
+                    e.printStackTrace();
+                }
+
             }
         }
     }
@@ -135,20 +246,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void runTextRecognition() {
-
         InputImage image = InputImage.fromBitmap(myBitmap,rotation);
-//        FirebaseVisionImage image = FirebaseVisionImage.fromBitmap(myBitmap);
-//        FirebaseVisionTextDetector detector = FirebaseVision.getInstance().getVisionTextDetector();
 
         TextRecognizer recognizer = TextRecognition.getClient();
-//        FirebaseVisionTextRecognizer textRecognizer = FirebaseVision.getInstance().getCloudTextRecognizer();
+
         Task<Text> result =recognizer.process(image).addOnSuccessListener(new OnSuccessListener<Text>() {
-//            @Override
-//            public void onSuccess(FirebaseVisionText firebaseVisionText) {
-//                processExtractedText(firebaseVisionText);
-//
-//            }
-////        } {
             @Override
             public void onSuccess(Text texts) {
                 processExtractedText(texts);
@@ -166,7 +268,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private void processExtractedText(Text firebaseVisionText) {
         myTextView.setText(null);
         if (firebaseVisionText.getText().length() == 0) {
-//        if (firebaseVisionText.getBlocks().size()== 0) {
             myTextView.setText("No text found. Please try again");
             return;
         }
@@ -191,81 +292,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     Rect elementFrame = element.getBoundingBox();
 
                     myTextView.append(elementText);
+                    Log.i("ExtractedText-line:", lineText);
+                    Log.i("ExtractedText-block:", blockText);
+                    Log.i("ExtractedText-element:", elementText);
+
                 }
 
             }
 
         }
-    }
 
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        switch (requestCode) {
-            case WRITE_STORAGE:
-
-                //If the permission request is granted, then...//
-                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    //...call selectPicture//
-                    selectPicture();
-                    //If the permission request is denied, then...//
-                } else {
-                    //...display the “permission_request” string//
-                    requestPermission(this, requestCode, R.string.permission_request);
-                }
-                break;
-
-        }
-    }
-
-    //Display the permission request dialog//
-    public static void requestPermission(final Activity activity, final int requestCode, int msg) {
-        AlertDialog.Builder alert = new AlertDialog.Builder(activity);
-        alert.setMessage(msg);
-        alert.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialogInterface, int i) {
-                dialogInterface.dismiss();
-                Intent permissionIntent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                permissionIntent.setData(Uri.parse("package:" + activity.getPackageName()));
-                activity.startActivityForResult(permissionIntent, requestCode);
-            }
-        });
-        alert.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialogInterface, int i) {
-                dialogInterface.dismiss();
-            }
-        });
-        alert.setCancelable(false);
-        alert.show();
-    }
-
-    //Check whether the user has granted the WRITE_STORAGE permission//
-    public void checkPermission(int requestCode) {
-        switch (requestCode) {
-            case WRITE_STORAGE:
-                int hasWriteExternalStoragePermission = ActivityCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE);
-
-                //If we have access to external storage...//
-                if (hasWriteExternalStoragePermission == PackageManager.PERMISSION_GRANTED) {
-                    //...call selectPicture, which launches an Activity where the user can select an image//
-                    selectPicture();
-                    //If permission hasn’t been granted, then...//
-                } else {
-                    //...request the permission//
-                    ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, requestCode);
-                }
-                break;
-        }
-    }
-
-    private void selectPicture() {
-        photo = CommonUtils.createTempFile(photo);
-        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-        //Start an Activity where the user can choose an image//
-        startActivityForResult(intent, SELECT_PHOTO);
     }
 
 }
