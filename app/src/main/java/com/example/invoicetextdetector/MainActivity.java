@@ -11,8 +11,6 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
-import android.graphics.Point;
-import android.graphics.Rect;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraManager;
@@ -22,7 +20,6 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.StrictMode;
 import android.provider.MediaStore;
-import android.util.Log;
 import android.util.SparseIntArray;
 import android.view.Surface;
 import android.view.View;
@@ -38,7 +35,6 @@ import com.google.mlkit.vision.common.InputImage;
 import com.google.mlkit.vision.text.Text;
 import com.google.mlkit.vision.text.TextRecognition;
 import com.google.mlkit.vision.text.TextRecognizer;
-
 import java.io.File;
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -64,14 +60,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        StrictMode.VmPolicy.Builder builder = new StrictMode.VmPolicy.Builder();
+        StrictMode.setVmPolicy(builder.build());
+
         myTextViewInfo = findViewById(R.id.textViewBillInfo);
         myEditTextGst = findViewById(R.id.textViewGST);
         myImageView = findViewById(R.id.imageView);
         findViewById(R.id.checkText).setOnClickListener(this);
         findViewById(R.id.select_image).setOnClickListener(this);
-
-        StrictMode.VmPolicy.Builder builder = new StrictMode.VmPolicy.Builder();
-        StrictMode.setVmPolicy(builder.build());
     }
 
     @Override
@@ -294,6 +290,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                     if (m.find( )) {
                         myEditTextGst.setText(m.group(0));
+                        return;
                     }
                 }
 
@@ -302,9 +299,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
 
                     myTextViewInfo.append(elementText+"\n");
-                    Log.i("ExtractedText-line:", lineText);
-                    Log.i("ExtractedText-block:", blockText);
-                    Log.i("ExtractedText-element:", elementText);
+//                    Log.i("ExtractedText-line:", lineText);
+//                    Log.i("ExtractedText-block:", blockText);
+//                    Log.i("ExtractedText-element:", elementText);
                 }
             }
         }
