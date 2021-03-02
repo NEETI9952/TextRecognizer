@@ -27,15 +27,20 @@ import android.util.Log;
 import android.util.SparseIntArray;
 import android.view.Surface;
 import android.view.View;
+import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.android.volley.DefaultRetryPolicy;
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.Response;
 import com.android.volley.VolleyError;
+import com.android.volley.toolbox.JsonObjectRequest;
+import com.android.volley.toolbox.JsonRequest;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.google.android.gms.tasks.OnFailureListener;
@@ -47,6 +52,10 @@ import com.google.mlkit.vision.common.InputImage;
 import com.google.mlkit.vision.text.Text;
 import com.google.mlkit.vision.text.TextRecognition;
 import com.google.mlkit.vision.text.TextRecognizer;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -59,7 +68,7 @@ import java.util.regex.Pattern;
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
     public static final String TAG = "My Tag";
-    public static String API_KEY = "a401a0322affe973112032046d6467f06";
+    public static String API_KEY = "a401a0322affe973112032046d6467f0";
     public static String GSTIN = "";
     StringRequest stringRequest;
     RequestQueue queue;
@@ -75,6 +84,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     int rotation=0;
     Uri imageUri;
     String GstPattern= "GST\\s*.*\\s*([0-9A-Z]{15})";
+    ProgressBar progressBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -96,6 +106,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         myTextViewInfo = findViewById(R.id.textViewBillInfo);
         myEditTextGst = findViewById(R.id.textViewGST);
         myImageView = findViewById(R.id.imageView);
+        progressBar= findViewById(R.id.progressBar);
         findViewById(R.id.checkText).setOnClickListener(this);
         findViewById(R.id.select_image).setOnClickListener(this);
     }
@@ -111,7 +122,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
                 break;
 
-                case R.id.select_image:
+            case R.id.select_image:
                 myTextViewInfo.setText("");
                 myEditTextGst.setText("");
                 GSTIN = "";
@@ -379,7 +390,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     public void validateGST(View v){
-
+        showProgressBar();
         String gst="([0-9A-Z]{15})";
         GSTIN= myEditTextGst.getText().toString().trim();
         Pattern p = Pattern.compile(gst);
@@ -390,28 +401,59 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             // Instantiate the RequestQueue.
             queue = Volley.newRequestQueue(this);
-            String url ="http://sheet.gstincheck.ml/check/"+ API_KEY +"/"+ GSTIN +"";
-
- // Request a string response from the provided URL.
-            stringRequest = new StringRequest(Request.Method.GET, url,
-                    new Response.Listener<String>() {
-                        @Override
-                        public void onResponse(String response) {
-                            Toast.makeText(MainActivity.this,"response",Toast.LENGTH_LONG).show();
-                            // Display the first 500 characters of the response string.
- //                           myEditTextGst.append("Response is: "+ response.substring(0,500));
+            String url ="https://sheet.gstincheck.ml/check/"+ API_KEY +"/"+ GSTIN +"";
+//
+//            // Request a string response from the provided URL.
+//            stringRequest = new StringRequest(Request.Method.GET, url,
+//                    new Response.Listener<String>() {
+//                        @Override
+//                        public void onResponse(String response) {
+//                            Toast.makeText(MainActivity.this,"response"+response.toString(),Toast.LENGTH_LONG).show();
+//                            // Display the first 500 characters of the response string.
+//                            //                           myEditTextGst.append("Response is: "+ response.substring(0,500));
+//                        }
+//                    }, new Response.ErrorListener() {
+//                @Override
+//                public void onErrorResponse(VolleyError error) {
+//                    Toast.makeText(MainActivity.this, error.getMessage(),Toast.LENGTH_SHORT).show();
+//                }
+//            });
+//            // Add the request to the RequestQueue.
+//            queue.add(stringRequest);
+//            stringRequest.setTag(TAG);
+            JsonRequest objectRequest=new JsonObjectRequest(Request.Method.GET, url, null,new Response.Listener<JSONObject>() {
+                @Override
+                public void onResponse(JSONObject response) {
+//                        TempDialog.dismiss();
+                    hideProgressBar();
+                    try {
+                        Boolean responseflag=response.getBoolean("flag");
+                        Log.e("statusresponse","aksjdf "+responseflag);
+                        if(responseflag){
+                            Toast.makeText(MainActivity.this, "GST Valid",Toast.LENGTH_SHORT).show();
+                        }else{
+                            Toast.makeText(MainActivity.this, "GST Invalid",Toast.LENGTH_SHORT).show();
                         }
-                    }, new Response.ErrorListener() {
+                    } catch (JSONException e) {
+                        e.printStackTrace();
+                    }
+
+
+//
+                }
+            }, new Response.ErrorListener() {
                 @Override
                 public void onErrorResponse(VolleyError error) {
-                    Toast.makeText(MainActivity.this, error.getMessage(),Toast.LENGTH_SHORT).show();
+                    hideProgressBar();
+                    Log.e("statuscode",error.toString());
                 }
             });
- // Add the request to the RequestQueue.
-            queue.add(stringRequest);
-            stringRequest.setTag(TAG);
+
+
+            queue.add(objectRequest);
 
         } else {
+            hideProgressBar();
             Toast.makeText(this,"GST must contain 15 characters",Toast.LENGTH_SHORT).show();
         }
     }
@@ -422,6 +464,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if (queue != null) {
             queue.cancelAll(TAG);
         }
+    }
+    private void showProgressBar(){
+        progressBar.setVisibility(View.VISIBLE);
+        getWindow().setFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
+    }
+    private void hideProgressBar(){
+        progressBar.setVisibility(View.INVISIBLE);
+        getWindow().clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
     }
 
 }
