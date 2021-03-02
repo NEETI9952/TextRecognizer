@@ -9,6 +9,7 @@ import androidx.core.content.FileProvider;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.ContentValues;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -22,6 +23,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.StrictMode;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.util.SparseIntArray;
 import android.view.Surface;
 import android.view.View;
@@ -29,38 +31,64 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.textfield.TextInputEditText;
 import com.google.mlkit.vision.common.InputImage;
 import com.google.mlkit.vision.text.Text;
 import com.google.mlkit.vision.text.TextRecognition;
 import com.google.mlkit.vision.text.TextRecognizer;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
+    public static final String TAG = "My Tag";
+    public static String API_KEY = "a401a0322affe973112032046d6467f06";
+    public static String GSTIN = "";
+    StringRequest stringRequest;
+    RequestQueue queue;
+
+
     private Bitmap myBitmap;
     private ImageView myImageView;
     private TextView myTextViewInfo;
-    private EditText myEditTextGst;
+    private TextInputEditText myEditTextGst;
     public static final int CAMERA_PERM_CODE = 101;
     public static final int CAMERA_REQUEST_CODE = 102;
     public static final int GALLERY_REQUEST_CODE = 105;
     int rotation=0;
     Uri imageUri;
-    String GstPattern= "((?=.*[0-9A-Z]).{15})";
+    String GstPattern= "GST\\s*.*\\s*([0-9A-Z]{15})";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+//        if (Build.VERSION.SDK_INT >= 24) {
+//            try {
+//                Method m = StrictMode.class.getMethod("disableDeathOnFileUriExposure");
+//                m.invoke(null);
+//            } catch (Exception e) {
+//                e.printStackTrace();
+//            }
+//        }
 
 //        StrictMode.VmPolicy.Builder builder = new StrictMode.VmPolicy.Builder();
 //        StrictMode.setVmPolicy(builder.build());
@@ -79,11 +107,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 if (myBitmap != null) {
                     runTextRecognition();
                 }else {
-                    Toast.makeText(this, "Check text clicked", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Please insert a bill", Toast.LENGTH_SHORT).show();
                 }
                 break;
-            case R.id.select_image:
+
+                case R.id.select_image:
                 myTextViewInfo.setText("");
+                myEditTextGst.setText("");
+                GSTIN = "";
+                myImageView.setImageResource(R.drawable.bill);
                 selectPhoto();
                 break;
         }
@@ -96,7 +128,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 .setPositiveButton("Camera", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        cameraPermission();
+                        try {
+                            cameraPermission();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
                     }
                 }).setNegativeButton("Gallery", new DialogInterface.OnClickListener() {
             @Override
@@ -115,7 +151,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         switch (requestCode) {
             case CAMERA_PERM_CODE:
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    dispatchTakePictureIntent();
+                    try {
+                        dispatchTakePictureIntent();
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 } else {
 
                 }
@@ -147,31 +187,48 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         startActivityForResult(gallery, GALLERY_REQUEST_CODE);
     }
 
-    public void cameraPermission() {
+    public void cameraPermission() throws IOException {
 
         if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 requestPermissions(new String[]{Manifest.permission.CAMERA}, CAMERA_PERM_CODE);
             }
-
         } else {
             dispatchTakePictureIntent();
         }
     }
 
-    private void dispatchTakePictureIntent () {
+    private void dispatchTakePictureIntent () throws IOException {
+//        ContentValues values= new ContentValues();
+//        values.put(MediaStore.Images.Media.TITLE,"New Picture");
+//        values.put(MediaStore.Images.Media.DESCRIPTION,"from camera");
+//
+//        imageUri=getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,values);
 
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+
+//        File storageDir = new File(Environment.getExternalStoragePublicDirectory(
+//                Environment.DIRECTORY_DCIM), "Camera");
+//        File file = File.createTempFile(
+//                timeStamp,  /* prefix */
+//                ".jpg",         /* suffix */
+//                storageDir      /* directory */
+//        );
+
+        // Save a file: path for use with ACTION_VIEW intents
+
+
         File file = new File(Environment.getExternalStorageDirectory(),  timeStamp + ".png");
 //        imageUri = Uri.fromFile(file);
-        imageUri  = FileProvider.getUriForFile(MainActivity.this, BuildConfig.APPLICATION_ID + ".provider",file);
+//        imageUri = FileProvider.getUriForFile(MainActivity.this,"com.example.invoicetextdetector.provider",file); //(use your app signature + ".provider" )
+//        imageUri  = FileProvider.getUriForFile(MainActivity.this, BuildConfig.APPLICATION_ID + ".provider",file);
 
 
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
+//        takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
+//        takePictureIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         if (takePictureIntent.resolveActivity(MainActivity.this.getPackageManager()) != null) {
             startActivityForResult(takePictureIntent, CAMERA_REQUEST_CODE);
-
         }
     }
 
@@ -179,23 +236,27 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 //        Toast.makeText(MainActivity.this, "Please Wait!", Toast.LENGTH_SHORT).show();
-        if(requestCode == CAMERA_REQUEST_CODE){
-            try {
-                myBitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), imageUri);
-                myImageView.setImageBitmap(myBitmap);
 
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+        if (requestCode == CAMERA_REQUEST_CODE) {
 //            if (resultCode == Activity.RESULT_OK) {
-//                Bundle extras = data.getExtras();
-//                myBitmap=(Bitmap) extras.get("data");
-//                myImageView.setImageBitmap(myBitmap);
-//                myImageView.setTag("photo added");
+//                try {
+//                    Log.i("", "onActivityResult: ");
+//                    myBitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), imageUri);
+//                    myImageView.setImageBitmap(myBitmap);
+//
+//                } catch (Exception e) {
+//                    e.printStackTrace();
+//                }
+            if (resultCode == Activity.RESULT_OK) {
+                Bundle extras = data.getExtras();
+                myBitmap=(Bitmap) extras.get("data");
+                myImageView.setImageBitmap(myBitmap);
+                myImageView.setTag("photo added");
 //                showProgressBar();
 //                handleUpload(bitmap);
-//            }
+            }
         }
+
         if (requestCode == GALLERY_REQUEST_CODE&&data!=null&&data.getData()!=null) {
             if (resultCode == Activity.RESULT_OK) {
 
@@ -287,19 +348,26 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             for (Text.Line line : block.getLines()) {
                 String lineText = line.getText();
 
-                if(lineText.contains("GSTIN")){
+                if(lineText.contains("GST")){
                     Pattern r = Pattern.compile(GstPattern);
                     Matcher m = r.matcher(lineText);
 
                     if (m.find( )) {
-                        myEditTextGst.setText(m.group(0));
-                        return;
+                        myEditTextGst.setText(m.group(1));
+
                     }
                 }
 
                 for (Text.Element element : line.getElements()) {
                     String elementText = element.getText();
 
+//                    Pattern p = Pattern.compile(GstPattern);
+//                    Matcher m = p.matcher(elementText);
+//
+//                    if (m.find( )) {
+//                        myTextViewInfo.setText("GSTIN"+m.group(1));
+//
+//                    }
 
                     myTextViewInfo.append(elementText+"\n");
 //                    Log.i("ExtractedText-line:", lineText);
@@ -310,8 +378,51 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    public boolean validateGST(String gst){
-        return GstPattern.matches(gst);
+    public void validateGST(View v){
+
+        String gst="([0-9A-Z]{15})";
+        GSTIN= myEditTextGst.getText().toString().trim();
+        Pattern p = Pattern.compile(gst);
+
+        Matcher matcher = p.matcher(GSTIN);
+
+        if (matcher.find()) {
+
+            // Instantiate the RequestQueue.
+            queue = Volley.newRequestQueue(this);
+            String url ="http://sheet.gstincheck.ml/check/"+ API_KEY +"/"+ GSTIN +"";
+
+ // Request a string response from the provided URL.
+            stringRequest = new StringRequest(Request.Method.GET, url,
+                    new Response.Listener<String>() {
+                        @Override
+                        public void onResponse(String response) {
+                            Toast.makeText(MainActivity.this,"response",Toast.LENGTH_LONG).show();
+                            // Display the first 500 characters of the response string.
+ //                           myEditTextGst.append("Response is: "+ response.substring(0,500));
+                        }
+                    }, new Response.ErrorListener() {
+                @Override
+                public void onErrorResponse(VolleyError error) {
+                    Toast.makeText(MainActivity.this, error.getMessage(),Toast.LENGTH_SHORT).show();
+                }
+            });
+ // Add the request to the RequestQueue.
+            queue.add(stringRequest);
+            stringRequest.setTag(TAG);
+
+        } else {
+            Toast.makeText(this,"GST must contain 15 characters",Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    protected void onStop () {
+        super.onStop();
+        if (queue != null) {
+            queue.cancelAll(TAG);
+        }
     }
 
 }
+

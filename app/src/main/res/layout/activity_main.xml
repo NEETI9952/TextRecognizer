@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_margin="16dp"
     tools:context=".MainActivity">
 
@@ -20,18 +21,61 @@
                 android:padding="8dp"
                 android:id="@+id/imageView"
                 android:layout_width="300dp"
-                android:layout_height="500dp"
+                android:layout_height="450dp"
                 android:adjustViewBounds="true"
                 android:layout_gravity="center"
                 android:src="@drawable/bill" />
 
-            <EditText
-                android:id="@+id/textViewGST"
+<!--            <EditText-->
+<!--                android:id="@+id/textViewGST"-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="wrap_content"-->
+<!--                android:textAppearance="@style/TextAppearance.AppCompat.Medium" />-->
+
+            <com.google.android.material.textfield.TextInputLayout
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
+                android:layout_marginBottom="2dp"
+                android:hint="GSTIN"
+                app:boxStrokeColor="@color/black"
+                app:boxStrokeWidthFocused="2dp"
+                app:endIconMode="clear_text"
+                app:hintTextColor="@color/black"
+                app:startIconTint="@color/black">
 
-            <EditText
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/textViewGST"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:textAppearance="@style/TextAppearance.AppCompat.Medium"
+                    android:inputType="text" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+<!--            <com.google.android.material.textfield.TextInputLayout-->
+<!--                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="wrap_content"-->
+<!--                android:layout_marginBottom="2dp"-->
+<!--                android:hint="Bill Details"-->
+<!--                app:boxStrokeColor="@color/black"-->
+<!--                app:boxStrokeWidthFocused="2dp"-->
+<!--                app:endIconMode="clear_text"-->
+<!--                app:hintTextColor="@color/black"-->
+<!--                app:startIconTint="@color/black">-->
+
+<!--                <com.google.android.material.textfield.TextInputEditText-->
+<!--                    android:id="@+id/textViewBillInfo"-->
+<!--                    android:layout_width="match_parent"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:textAppearance="@style/TextAppearance.AppCompat.Medium"-->
+<!--                    android:inputType="text" />-->
+
+<!--            </com.google.android.material.textfield.TextInputLayout>-->
+
+            <TextView
+                android:layout_marginVertical="2dp"
                 android:id="@+id/textViewBillInfo"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -60,7 +104,14 @@
             android:id="@+id/checkText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Check the text" />
+            android:text="Extract text" />
+
+        <Button
+            android:id="@+id/checkGst"
+            android:onClick="validateGST"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Check GSTIN" />
 
     </LinearLayout>
 
