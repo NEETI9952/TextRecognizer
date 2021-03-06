@@ -23,6 +23,8 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.StrictMode;
 import android.provider.MediaStore;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.util.SparseIntArray;
 import android.view.Surface;
@@ -30,6 +32,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -48,11 +51,13 @@ import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 import com.google.mlkit.vision.common.InputImage;
 import com.google.mlkit.vision.text.Text;
 import com.google.mlkit.vision.text.TextRecognition;
 import com.google.mlkit.vision.text.TextRecognizer;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -61,17 +66,20 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.List;
 import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
-    public static final String TAG = "My Tag";
-    public static String API_KEY = "a401a0322affe973112032046d6467f0";
+    public static final String TAG = "Main Activity";
+    public static String API_KEY = "af30c484b8c6520a2c60a0ba41702fa7";
     public static String GSTIN = "";
-    StringRequest stringRequest;
-    RequestQueue queue;
+    TextInputLayout gstinTextLayout;
+    LinearLayout linearButtonLayout;
+    JSONObject responseFromApi;
+//     07AANFG0307M1ZC
 
 
     private Bitmap myBitmap;
@@ -82,7 +90,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public static final int CAMERA_REQUEST_CODE = 102;
     public static final int GALLERY_REQUEST_CODE = 105;
     int rotation=0;
-    Uri imageUri;
     String GstPattern= "GST\\s*.*\\s*([0-9A-Z]{15})";
     ProgressBar progressBar;
 
@@ -107,8 +114,26 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         myEditTextGst = findViewById(R.id.textViewGST);
         myImageView = findViewById(R.id.imageView);
         progressBar= findViewById(R.id.progressBar);
+        gstinTextLayout=findViewById(R.id.textInputLayoutGST);
+        linearButtonLayout=findViewById(R.id.linearButtonLayout);
         findViewById(R.id.checkText).setOnClickListener(this);
         findViewById(R.id.select_image).setOnClickListener(this);
+
+        myEditTextGst.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                gstinTextLayout.setEndIconDrawable(null);
+
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+            }
+        });
     }
 
     @Override
@@ -177,9 +202,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 } else {
                 }
                 break;
-
         }
-
     }
 
     private void galleryPermissions() {
@@ -187,7 +210,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 requestPermissions(new String[]{Manifest.permission.READ_EXTERNAL_STORAGE}, GALLERY_REQUEST_CODE);
             }
-
         } else {
             dispatchToGalleryIntent();
         }
@@ -213,7 +235,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 //        ContentValues values= new ContentValues();
 //        values.put(MediaStore.Images.Media.TITLE,"New Picture");
 //        values.put(MediaStore.Images.Media.DESCRIPTION,"from camera");
-//
 //        imageUri=getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI,values);
 
         String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
@@ -228,12 +249,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         // Save a file: path for use with ACTION_VIEW intents
 
-
         File file = new File(Environment.getExternalStorageDirectory(),  timeStamp + ".png");
 //        imageUri = Uri.fromFile(file);
 //        imageUri = FileProvider.getUriForFile(MainActivity.this,"com.example.invoicetextdetector.provider",file); //(use your app signature + ".provider" )
 //        imageUri  = FileProvider.getUriForFile(MainActivity.this, BuildConfig.APPLICATION_ID + ".provider",file);
-
 
         Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
 //        takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT, imageUri);
@@ -323,6 +342,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     private void runTextRecognition() {
+
+        if(linearButtonLayout.getVisibility()==View.VISIBLE) {
+            linearButtonLayout.setVisibility(View.GONE);
+        }
         InputImage image = InputImage.fromBitmap(myBitmap,rotation);
 
         TextRecognizer recognizer = TextRecognition.getClient();
@@ -359,6 +382,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             for (Text.Line line : block.getLines()) {
                 String lineText = line.getText();
 
+                myTextViewInfo.append(lineText+"\n");
+
                 if(lineText.contains("GST")){
                     Pattern r = Pattern.compile(GstPattern);
                     Matcher m = r.matcher(lineText);
@@ -369,22 +394,28 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     }
                 }
 
-                for (Text.Element element : line.getElements()) {
-                    String elementText = element.getText();
 
-//                    Pattern p = Pattern.compile(GstPattern);
-//                    Matcher m = p.matcher(elementText);
-//
-//                    if (m.find( )) {
-//                        myTextViewInfo.setText("GSTIN"+m.group(1));
-//
-//                    }
 
-                    myTextViewInfo.append(elementText+"\n");
-//                    Log.i("ExtractedText-line:", lineText);
-//                    Log.i("ExtractedText-block:", blockText);
-//                    Log.i("ExtractedText-element:", elementText);
-                }
+//                for (Text.Element element : line.getElements()) {
+//                    String elementText = element.getText();
+//
+////                    Pattern p = Pattern.compile(GstPattern);
+////                    Matcher m = p.matcher(elementText);
+////
+////                    if (m.find( )) {
+////                        myTextViewInfo.setText("GSTIN"+m.group(1));
+////
+////                    }
+////                    myTextViewInfo.append(elementText+"\n");
+////                    Log.i("ExtractedText-line:", lineText);
+////                    Log.i("ExtractedText-block:", blockText);
+////                    Log.i("ExtractedText-element:", elementText);
+//                }
+            }
+
+            if(myEditTextGst.getText().toString().trim().isEmpty()){
+                Toast.makeText(MainActivity.this,"Couldn't find GSTIN",Toast.LENGTH_LONG).show();
+                //alertbox
             }
         }
     }
@@ -400,46 +431,36 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if (matcher.find()) {
 
             // Instantiate the RequestQueue.
-            queue = Volley.newRequestQueue(this);
+//            queue = Volley.newRequestQueue(this);
             String url ="https://sheet.gstincheck.ml/check/"+ API_KEY +"/"+ GSTIN +"";
-//
-//            // Request a string response from the provided URL.
-//            stringRequest = new StringRequest(Request.Method.GET, url,
-//                    new Response.Listener<String>() {
-//                        @Override
-//                        public void onResponse(String response) {
-//                            Toast.makeText(MainActivity.this,"response"+response.toString(),Toast.LENGTH_LONG).show();
-//                            // Display the first 500 characters of the response string.
-//                            //                           myEditTextGst.append("Response is: "+ response.substring(0,500));
-//                        }
-//                    }, new Response.ErrorListener() {
-//                @Override
-//                public void onErrorResponse(VolleyError error) {
-//                    Toast.makeText(MainActivity.this, error.getMessage(),Toast.LENGTH_SHORT).show();
-//                }
-//            });
-//            // Add the request to the RequestQueue.
-//            queue.add(stringRequest);
-//            stringRequest.setTag(TAG);
+
             JsonRequest objectRequest=new JsonObjectRequest(Request.Method.GET, url, null,new Response.Listener<JSONObject>() {
                 @Override
                 public void onResponse(JSONObject response) {
+                    responseFromApi=response;
 //                        TempDialog.dismiss();
                     hideProgressBar();
                     try {
                         Boolean responseflag=response.getBoolean("flag");
-                        Log.e("statusresponse","aksjdf "+responseflag);
+                        Log.i("statusresponse","status:" +responseflag);
+
                         if(responseflag){
+
                             Toast.makeText(MainActivity.this, "GST Valid",Toast.LENGTH_SHORT).show();
+                            gstinTextLayout.setEndIconDrawable(R.drawable.ic_baseline_check_circle_24);
+                            linearButtonLayout.setVisibility(View.VISIBLE);
+                            
+//                            fetchDataFromApi(response);
+
                         }else{
+                            gstinTextLayout.setEndIconDrawable(R.drawable.ic_baseline_close_24);
+//                            gstinTextLayout.setError("GST Invalid");
                             Toast.makeText(MainActivity.this, "GST Invalid",Toast.LENGTH_SHORT).show();
                         }
                     } catch (JSONException e) {
                         e.printStackTrace();
                     }
 
-
-//
                 }
             }, new Response.ErrorListener() {
                 @Override
@@ -449,22 +470,75 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }
             });
 
-
-            queue.add(objectRequest);
+            MySingleton.getInstance(this).addToRequestQueue(objectRequest);
+//            queue.add(objectRequest);
 
         } else {
             hideProgressBar();
-            Toast.makeText(this,"GST must contain 15 characters",Toast.LENGTH_SHORT).show();
+            gstinTextLayout.setError("GST must contain 15 characters");
+//            Toast.makeText(this,"GST must contain 15 characters",Toast.LENGTH_SHORT).show();
         }
     }
 
-    @Override
-    protected void onStop () {
-        super.onStop();
-        if (queue != null) {
-            queue.cancelAll(TAG);
+    public void fetchDetailButton(View v) throws JSONException {
+        if(responseFromApi!=null){
+            fetchDataFromApi(responseFromApi);
+        }else {
+            Toast.makeText(this,"Something went wrong",Toast.LENGTH_SHORT).show();
         }
     }
+
+    private void fetchDataFromApi(JSONObject response) throws JSONException {
+
+        Toast.makeText(MainActivity.this, "GST Valid",Toast.LENGTH_SHORT).show();
+
+        JSONObject data_from_api  = response.getJSONObject("data");
+        Log.i(TAG, "onResponse data:"+data_from_api.toString());
+        DataClass data= new DataClass();
+
+        data.setTradeNam(data_from_api.getString("tradeNam"));
+        data.setSts(data_from_api.getString("sts"));
+        data.setLstupdt(data_from_api.getString("lstupdt"));
+        data.setRgdt(data_from_api.getString("rgdt"));
+        data.setDty(data_from_api.getString("dty"));
+
+        JSONObject pradr_from_api= data_from_api.getJSONObject("pradr");
+
+
+        JSONObject address_from_api= pradr_from_api.getJSONObject("addr");
+        addressClass address = new addressClass();
+
+        address.setBno(address_from_api.getString("bno"));
+        address.setFlno(address_from_api.getString("flno"));
+        address.setSt(address_from_api.getString("st")) ;
+        address.setLoc(address_from_api.getString("loc"));
+        address.setCity(address_from_api.getString("city"));
+        address.setDst(address_from_api.getString("dst"));
+        address.setStcd(address_from_api.getString("stcd"));
+        address.setLoc(address_from_api.getString("pncd"));
+
+
+        goToTaxPayerInfoActivity(data,address);
+    }
+
+    private void goToTaxPayerInfoActivity(DataClass data, addressClass address) {
+
+        Intent intent = new Intent(MainActivity.this, TaxPayerInfoActivity.class);
+
+        intent.putExtra("GSTIN", GSTIN);
+        intent.putExtra("tradeName", data.getTradeNam());
+        intent.putExtra("status", data.getSts());
+        intent.putExtra("lstupdate", data.getLstupdt());
+        intent.putExtra("address", address.getBno()+" "+address.getFlno()+" "+address.getSt()+" "+address.getLoc()+" "+ address.getCity()+" "+address.getDst()+" "+address.getStcd()+" "+address.getPncd());
+        intent.putExtra("registrationType", data.getDty());
+        intent.putExtra("registrationDate", data.getRgdt());
+        startActivity(intent);
+    }
+
+    public  void CreateExcelSheet(View v){
+        ////
+    }
+
     private void showProgressBar(){
         progressBar.setVisibility(View.VISIBLE);
         getWindow().setFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
